@@ -77,15 +77,19 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <CudaCompile Include="gpufunc.cu" />
     <CudaCompile Include="kernel.cu" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="functions.cpp">
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/bigobj %(AdditionalOptions)</AdditionalOptions>
-    </ClCompile>
+    <ClCompile Include="DataInitializer.cpp" />
+    <ClCompile Include="EditionalTools.cpp" />
+    <ClCompile Include="NewtonSolver.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="functions.h" />
+    <ClInclude Include="DataInitializer.h" />
+    <ClInclude Include="EditionalTools.h" />
+    <ClInclude Include="GPUDataInitializer.h" />
+    <ClInclude Include="NewtonSolver.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
