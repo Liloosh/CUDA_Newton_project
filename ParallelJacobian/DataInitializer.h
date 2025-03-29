@@ -2,8 +2,8 @@
 #include "vector"
 #include "config.h"
 
-#define MATRIX_SIZE 100
-#define BLOCK_SIZE 32
+#define MATRIX_SIZE 1000
+#define BLOCK_SIZE 128
 #define EQURENCY 1e-6
 #define TOLERANCE 1e-5
 
@@ -18,6 +18,7 @@ public:
 		* delta_h{ nullptr },
 		* vec_h{ nullptr };
 
+#ifdef GPU_SOLVER
 	double* indexes_d{ nullptr },
 		* points_d{ nullptr },
 		* vector_d{ nullptr },
@@ -28,9 +29,14 @@ public:
 		* vec_d{ nullptr };
 	int* cublas_pivot{ nullptr }, * cublas_info{ nullptr };
 	double** cublas_ajacobian_d{ nullptr }, ** cublas_ainverse_jacobian_d{ nullptr };
+#endif
 
 #ifdef INTERMEDIATE_RESULTS
 	std::vector<double> intermediate_results;
+#endif
+
+#ifdef TOTAL_ELASPED_TIME
+	double total_elapsed_time;
 #endif
 
 	void initialize_indexes_matrix_and_b();

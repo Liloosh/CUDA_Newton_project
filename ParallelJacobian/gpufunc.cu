@@ -2,6 +2,7 @@
 #include "stdio.h"
 #include <iostream>
 
+#ifdef GPU_SOLVER
 __global__ void gpu_compute_func_and_delta_values(double* points_d, double* indexes_d, double* vec_d) {
     int x_blocks_count = (MATRIX_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
     int gidx = blockDim.x * blockIdx.x + threadIdx.x;
@@ -118,6 +119,7 @@ __global__ void gpu_compute_jacobian(double * points_d, double * indexes_d, doub
 }
 
 void NewtonSolver::gpu_newton_solve() {
+	std::cout << "GPU Newton solver" << "\n";
     int x_blocks_count = (MATRIX_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
     double dx = 0;
     int iterations_count = 0;
@@ -126,6 +128,10 @@ void NewtonSolver::gpu_newton_solve() {
 
     double* delta = new double[MATRIX_SIZE];
     double* delta1 = new double[MATRIX_SIZE];
+
+#ifdef TOTAL_ELASPED_TIME
+    auto start_total = std::chrono::high_resolution_clock::now();
+#endif
     do {
         iterations_count++;
 
@@ -209,7 +215,24 @@ void NewtonSolver::gpu_newton_solve() {
         elapsed = end - start;
         data->intermediate_results[4] = elapsed.count();
 #endif
+
+#ifdef INTERMEDIATE_RESULTS
+        std::cout << "\nIteration: " << iterations_count << "\n";
+        std::cout << "===============================================================\n";
+        std::cout << "Intermediate results: \n";
+        std::cout << "Compute func values: " << data->intermediate_results[0] << "\n";
+        std::cout << "Compute jacobian: " << data->intermediate_results[1] << "\n";
+        std::cout << "Compute inverse jacobian: " << data->intermediate_results[2] << "\n";
+        std::cout << "Compute delta: " << data->intermediate_results[3] << "\n";
+        std::cout << "Update points: " << data->intermediate_results[4] << "\n";
+        std::cout << "===============================================================\n";
+#endif
     } while (dx > TOLERANCE);
+#ifdef TOTAL_ELASPED_TIME
+    auto end_total = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed_total = end_total - start_total;
+    data->total_elapsed_time = elapsed_total.count();
+#endif
 
     for (size_t i = 0; i < MATRIX_SIZE; ++i) {
         data->points_h[i] -= delta1[i];
@@ -218,3 +241,4 @@ void NewtonSolver::gpu_newton_solve() {
 
     print_solution(iterations_count, data->points_h);
 }
+#endif

@@ -88,9 +88,13 @@ void NewtonSolver::cpu_compute_delta() {
 }
 
 void NewtonSolver::cpu_newton_solve() {
+    std::cout << "CPU Newton solver\n";
     double dx = 0.0;
     int iterations_count = 0;
 
+#ifdef TOTAL_ELASPED_TIME
+	auto start_total = std::chrono::high_resolution_clock::now();
+#endif
     do {
         iterations_count++;
 
@@ -148,7 +152,24 @@ void NewtonSolver::cpu_newton_solve() {
 		elapsed = end - start;
 		data->intermediate_results[4] = elapsed.count();
 #endif
+
+#ifdef INTERMEDIATE_RESULTS
+		std::cout << "\nIteration: " << iterations_count << "\n";
+        std::cout << "===============================================================\n";
+        std::cout << "Intermediate results: \n";
+        std::cout << "Compute func values: " << data->intermediate_results[0] << "\n";
+        std::cout << "Compute jacobian: " << data->intermediate_results[1] << "\n";
+        std::cout << "Compute inverse jacobian: " << data->intermediate_results[2] << "\n";
+        std::cout << "Compute delta: " << data->intermediate_results[3] << "\n";
+        std::cout << "Update points: " << data->intermediate_results[4] << "\n";
+        std::cout << "===============================================================\n";
+#endif
     } while (dx > TOLERANCE);
+#ifdef TOTAL_ELASPED_TIME
+	auto end_total = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> elapsed_total = end_total - start_total;
+	data->total_elapsed_time = elapsed_total.count();
+#endif
 
     print_solution(iterations_count, data->points_h);
 }
@@ -157,6 +178,7 @@ void NewtonSolver::cpu_newton_solve() {
 // GPU
 //
 
+#ifdef GPU_SOLVER
 void gpu_cublasInverse(DataInitializer* data) {
     cudaMemcpy(data->cublas_ajacobian_d, &data->jacobian_d, sizeof(double*), cudaMemcpyHostToDevice);
     cudaMemcpy(data->cublas_ainverse_jacobian_d, &data->inverse_jacobian_d, sizeof(double*), cudaMemcpyHostToDevice);
@@ -169,23 +191,20 @@ void gpu_cublasInverse(DataInitializer* data) {
 
     cudaMemcpy(data->inverse_jacobian_h, data->inverse_jacobian_d, MATRIX_SIZE * MATRIX_SIZE * sizeof(double), cudaMemcpyDeviceToHost);
 }
+#endif
 
 void NewtonSolver::print_solution(int iterations_count, double* result) {
-    std::cout << "Iterations: " << iterations_count << "\n";
+    std::cout << "Total Iterations count: " << iterations_count << "\n";
+
+#ifdef TOTAL_ELASPED_TIME
+	std::cout << "Total elapsed time: " << data->total_elapsed_time << "\n";
+#endif
+#ifdef SOLUTION_PRINT
     std::cout << "Solution: \n";
 
     for (int i = 0; i < MATRIX_SIZE; i++) {
         std::cout << result[i] << "\n";
     }
-
-#ifdef INTERMEDIATE_RESULTS
-	std::cout << "\n===============================================================\n";
-	std::cout << "Intermediate results: \n";
-	std::cout << "Compute func values: " << data->intermediate_results[0] << "\n";
-	std::cout << "Compute jacobian: " << data->intermediate_results[1] << "\n";
-	std::cout << "Compute inverse jacobian: " << data->intermediate_results[2] << "\n";
-	std::cout << "Compute delta: " << data->intermediate_results[3] << "\n";
-	std::cout << "Update points: " << data->intermediate_results[4] << "\n";
-    std::cout << "===============================================================\n";
 #endif
+    std::cout << "\n";
 }

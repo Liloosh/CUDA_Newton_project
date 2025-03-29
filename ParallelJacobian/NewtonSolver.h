@@ -25,6 +25,8 @@ public:
 	void gpu_newton_solve();
 };
 
+#ifdef GPU_SOLVER
 __global__ void gpu_compute_func_and_delta_values(double* points_d, double* indexes_d, double* vec_d);
 __global__ void gpu_compute_jacobian(double* points_d, double* indexes_d, double* jacobian_d);
 void gpu_cublasInverse(DataInitializer* data);
+#endif
