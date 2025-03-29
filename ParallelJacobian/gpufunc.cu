@@ -2,7 +2,7 @@
 #include "stdio.h"
 #include <iostream>
 
-__global__ void gpu_computeVec(double* points_d, double* indexes_d, double* vec_d) {
+__global__ void gpu_compute_func_and_delta_values(double* points_d, double* indexes_d, double* vec_d) {
     int x_blocks_count = (MATRIX_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
     int gidx = blockDim.x * blockIdx.x + threadIdx.x;
     int gidy = blockDim.y * blockIdx.y + threadIdx.y;
@@ -117,67 +117,6 @@ __global__ void gpu_compute_jacobian(double * points_d, double * indexes_d, doub
     }
 }
 
-__global__ void gpu_computeDelta(double * inverse_jacobian_d, double * vec_d, double * delta_d) {
-    int gidx = blockDim.x * blockIdx.x + threadIdx.x;
-    int gidy = blockDim.y * blockIdx.y + threadIdx.y;
-    int tidx = threadIdx.x;
-
-    extern __shared__ double shared_points[];
-
-    if (gidx < MATRIX_SIZE) {
-        shared_points[threadIdx.x] = inverse_jacobian_d[gidy * MATRIX_SIZE + gidx];
-        shared_points[threadIdx.x + blockDim.x] = vec_d[gidx];
-    }
-    else {
-        shared_points[threadIdx.x] = 0;
-        shared_points[threadIdx.x + blockDim.x] = 0;
-    }
-    __syncthreads();
-
-    shared_points[tidx] *= shared_points[tidx + blockDim.x];
-
-    if (BLOCK_SIZE >= 1024) {
-        shared_points[threadIdx.x] += shared_points[threadIdx.x + 512];
-    }
-
-    __syncthreads();
-
-    if (BLOCK_SIZE >= 512) {
-        shared_points[threadIdx.x] += shared_points[threadIdx.x + 256];
-    }
-
-    __syncthreads();
-
-    if (BLOCK_SIZE >= 256) {
-        shared_points[threadIdx.x] += shared_points[threadIdx.x + 128];
-    }
-
-    __syncthreads();
-
-    if (BLOCK_SIZE >= 128) {
-        shared_points[threadIdx.x] += shared_points[threadIdx.x + 64];
-    }
-
-    __syncthreads();
-
-    if (BLOCK_SIZE >= 64) {
-        shared_points[threadIdx.x] += shared_points[threadIdx.x + 32];
-    }
-
-    __syncthreads();
-    if (threadIdx.x < 32) {
-        shared_points[threadIdx.x] += shared_points[threadIdx.x + 16];
-        shared_points[threadIdx.x] += shared_points[threadIdx.x + 8];
-        shared_points[threadIdx.x] += shared_points[threadIdx.x + 4];
-        shared_points[threadIdx.x] += shared_points[threadIdx.x + 2];
-        shared_points[threadIdx.x] += shared_points[threadIdx.x + 1];
-    }
-
-    if (tidx == 0) {
-        delta_d[gidy * gridDim.x + blockIdx.x] = shared_points[threadIdx.x];
-    }
-}
-
 void NewtonSolver::gpu_newton_solve() {
     int x_blocks_count = (MATRIX_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
     double dx = 0;
@@ -192,7 +131,7 @@ void NewtonSolver::gpu_newton_solve() {
 
         cudaMemcpy(data->points_d, data->points_h, MATRIX_SIZE * sizeof(double), cudaMemcpyHostToDevice);
         cudaMemcpy(data->indexes_d, data->indexes_h, MATRIX_SIZE * MATRIX_SIZE * sizeof(double), cudaMemcpyHostToDevice);
-        gpu_computeVec << <gridDim, blockDim, 2 * blockDim.x * sizeof(double) >> > (data->points_d, data->indexes_d, data->vector_d);
+        gpu_compute_func_and_delta_values << <gridDim, blockDim, 2 * blockDim.x * sizeof(double) >> > (data->points_d, data->indexes_d, data->vector_d);
         cudaDeviceSynchronize();
         cudaMemcpy(data->vector_h, data->vector_d, x_blocks_count * MATRIX_SIZE * sizeof(double), cudaMemcpyDeviceToHost);
 
@@ -210,7 +149,7 @@ void NewtonSolver::gpu_newton_solve() {
         gpu_cublasInverse(data);
 
         cudaMemcpy(data->vec_d, data->vec_h, MATRIX_SIZE * sizeof(double), cudaMemcpyHostToDevice);
-        gpu_computeDelta << <gridDim, blockDim, 2 * blockDim.x * sizeof(double) >> > (data->inverse_jacobian_d, data->vec_d, data->delta_d);
+        gpu_compute_func_and_delta_values << <gridDim, blockDim, 2 * blockDim.x * sizeof(double) >> > (data->vec_d, data->inverse_jacobian_d, data->delta_d);
         cudaDeviceSynchronize();
         cudaMemcpy(data->delta_h, data->delta_d, x_blocks_count * MATRIX_SIZE * sizeof(double), cudaMemcpyDeviceToHost);
 
