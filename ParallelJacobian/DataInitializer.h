@@ -1,7 +1,8 @@
 #pragma once
-#include "GPUDataInitializer.h"
+#include "vector"
+#include "config.h"
 
-#define MATRIX_SIZE 10
+#define MATRIX_SIZE 100
 #define BLOCK_SIZE 32
 #define EQURENCY 1e-6
 #define TOLERANCE 1e-5
@@ -27,6 +28,10 @@ public:
 		* vec_d{ nullptr };
 	int* cublas_pivot{ nullptr }, * cublas_info{ nullptr };
 	double** cublas_ajacobian_d{ nullptr }, ** cublas_ainverse_jacobian_d{ nullptr };
+
+#ifdef INTERMEDIATE_RESULTS
+	std::vector<double> intermediate_results;
+#endif
 
 	void initialize_indexes_matrix_and_b();
  

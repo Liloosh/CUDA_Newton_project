@@ -2,7 +2,8 @@
 #include "DataInitializer.h"
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
-#include "GPUDataInitializer.h"
+#include "config.h"
+#include <chrono>
 
 struct NewtonSolver {
 private:

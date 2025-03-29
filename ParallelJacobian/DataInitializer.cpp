@@ -30,6 +30,10 @@ DataInitializer::DataInitializer() {
     vector_b_h = new double[MATRIX_SIZE];
     vector_h = new double[x_blocks_count * MATRIX_SIZE];
 
+#ifdef INTERMEDIATE_RESULTS
+    intermediate_results = std::vector<double>(5, 0.0);
+#endif
+
     initialize_indexes_matrix_and_b();
 }
 

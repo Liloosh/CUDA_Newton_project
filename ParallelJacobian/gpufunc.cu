@@ -129,6 +129,9 @@ void NewtonSolver::gpu_newton_solve() {
     do {
         iterations_count++;
 
+#ifdef INTERMEDIATE_RESULTS
+        auto start = std::chrono::high_resolution_clock::now();
+#endif
         cudaMemcpy(data->points_d, data->points_h, MATRIX_SIZE * sizeof(double), cudaMemcpyHostToDevice);
         cudaMemcpy(data->indexes_d, data->indexes_h, MATRIX_SIZE * MATRIX_SIZE * sizeof(double), cudaMemcpyHostToDevice);
         gpu_compute_func_and_delta_values << <gridDim, blockDim, 2 * blockDim.x * sizeof(double) >> > (data->points_d, data->indexes_d, data->vector_d);
@@ -141,13 +144,37 @@ void NewtonSolver::gpu_newton_solve() {
                 data->vec_h[i] += data->vector_h[i * x_blocks_count + j];
             }
         }
+#ifdef INTERMEDIATE_RESULTS
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed = end - start;
+        data->intermediate_results[0] = elapsed.count();
+#endif
 
+#ifdef INTERMEDIATE_RESULTS
+        start = std::chrono::high_resolution_clock::now();
+#endif
         gpu_compute_jacobian << <gridDim, blockDim, 2 * blockDim.x * sizeof(double) >> > (data->points_d, data->indexes_d, data->jacobian_d);
         cudaMemcpy(data->jacobian_h, data->jacobian_d, MATRIX_SIZE * MATRIX_SIZE * sizeof(double), cudaMemcpyDeviceToHost);
         cudaDeviceSynchronize();
+#ifdef INTERMEDIATE_RESULTS
+        end = std::chrono::high_resolution_clock::now();
+        elapsed = end - start;
+        data->intermediate_results[1] = elapsed.count();
+#endif
 
+#ifdef INTERMEDIATE_RESULTS
+        start = std::chrono::high_resolution_clock::now();
+#endif
         gpu_cublasInverse(data);
+#ifdef INTERMEDIATE_RESULTS
+        end = std::chrono::high_resolution_clock::now();
+        elapsed = end - start;
+        data->intermediate_results[2] = elapsed.count();
+#endif
 
+#ifdef INTERMEDIATE_RESULTS
+        start = std::chrono::high_resolution_clock::now();
+#endif
         cudaMemcpy(data->vec_d, data->vec_h, MATRIX_SIZE * sizeof(double), cudaMemcpyHostToDevice);
         gpu_compute_func_and_delta_values << <gridDim, blockDim, 2 * blockDim.x * sizeof(double) >> > (data->vec_d, data->inverse_jacobian_d, data->delta_d);
         cudaDeviceSynchronize();
@@ -159,7 +186,15 @@ void NewtonSolver::gpu_newton_solve() {
                 delta[i] -= data->delta_h[i * x_blocks_count + j];
             }
         }
+#ifdef INTERMEDIATE_RESULTS
+        end = std::chrono::high_resolution_clock::now();
+        elapsed = end - start;
+        data->intermediate_results[3] = elapsed.count();
+#endif
 
+#ifdef INTERMEDIATE_RESULTS
+        start = std::chrono::high_resolution_clock::now();
+#endif
         dx = 0.0;
 
         for (size_t i = 0; i < MATRIX_SIZE; ++i) {
@@ -169,11 +204,17 @@ void NewtonSolver::gpu_newton_solve() {
             data->points_h[i] += delta[i];
             dx = std::max(dx, std::abs(delta[i]));
         }
+#ifdef INTERMEDIATE_RESULTS
+        end = std::chrono::high_resolution_clock::now();
+        elapsed = end - start;
+        data->intermediate_results[4] = elapsed.count();
+#endif
     } while (dx > TOLERANCE);
 
     for (size_t i = 0; i < MATRIX_SIZE; ++i) {
         data->points_h[i] -= delta1[i];
     }
+
 
     print_solution(iterations_count, data->points_h);
 }

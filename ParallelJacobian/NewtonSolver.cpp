@@ -94,20 +94,60 @@ void NewtonSolver::cpu_newton_solve() {
     do {
         iterations_count++;
 
+#ifdef INTERMEDIATE_RESULTS
+		auto start = std::chrono::high_resolution_clock::now();
+#endif
         cpu_computeVec();
+#ifdef INTERMEDIATE_RESULTS
+		auto end = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double> elapsed = end - start;
+        data->intermediate_results[0] = elapsed.count();
+#endif
 
+#ifdef INTERMEDIATE_RESULTS
+		start = std::chrono::high_resolution_clock::now();
+#endif
         cpu_compute_jacobian();
+#ifdef INTERMEDIATE_RESULTS
+		end = std::chrono::high_resolution_clock::now();
+		elapsed = end - start;
+        data->intermediate_results[1] = elapsed.count();
+#endif
 
+#ifdef INTERMEDIATE_RESULTS
+		start = std::chrono::high_resolution_clock::now();
+#endif
         cpu_inverse();
+#ifdef INTERMEDIATE_RESULTS
+		end = std::chrono::high_resolution_clock::now();
+		elapsed = end - start;
+        data->intermediate_results[2] = elapsed.count();
+#endif
 
+#ifdef INTERMEDIATE_RESULTS
+		start = std::chrono::high_resolution_clock::now();
+#endif
         cpu_compute_delta();
+#ifdef INTERMEDIATE_RESULTS
+		end = std::chrono::high_resolution_clock::now();
+		elapsed = end - start;
+        data->intermediate_results[3] = elapsed.count();
+#endif
 
+#ifdef INTERMEDIATE_RESULTS
+        start = std::chrono::high_resolution_clock::now();
+#endif
         dx = 0;
         for (size_t i = 0; i < MATRIX_SIZE; ++i) {
             data->points_h[i] += data->delta_h[i];
             //data->points_h[i] = tools::calculate_index_xn(data->indexes_h[i * MATRIX_SIZE + i], data->points_h[i]);
             dx = std::max(dx, std::abs(data->delta_h[i]));
         }
+#ifdef INTERMEDIATE_RESULTS
+		end = std::chrono::high_resolution_clock::now();
+		elapsed = end - start;
+		data->intermediate_results[4] = elapsed.count();
+#endif
     } while (dx > TOLERANCE);
 
     print_solution(iterations_count, data->points_h);
@@ -137,4 +177,15 @@ void NewtonSolver::print_solution(int iterations_count, double* result) {
     for (int i = 0; i < MATRIX_SIZE; i++) {
         std::cout << result[i] << "\n";
     }
+
+#ifdef INTERMEDIATE_RESULTS
+	std::cout << "\n===============================================================\n";
+	std::cout << "Intermediate results: \n";
+	std::cout << "Compute func values: " << data->intermediate_results[0] << "\n";
+	std::cout << "Compute jacobian: " << data->intermediate_results[1] << "\n";
+	std::cout << "Compute inverse jacobian: " << data->intermediate_results[2] << "\n";
+	std::cout << "Compute delta: " << data->intermediate_results[3] << "\n";
+	std::cout << "Update points: " << data->intermediate_results[4] << "\n";
+    std::cout << "===============================================================\n";
+#endif
 }
