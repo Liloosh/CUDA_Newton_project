@@ -138,11 +138,27 @@ void NewtonSolver::gpu_newton_solve() {
 #ifdef INTERMEDIATE_RESULTS
         auto start = std::chrono::high_resolution_clock::now();
 #endif
+#ifdef COPY_ACTION
+		auto start_copy = std::chrono::high_resolution_clock::now();
+#endif
         cudaMemcpy(data->points_d, data->points_h, MATRIX_SIZE * sizeof(double), cudaMemcpyHostToDevice);
         cudaMemcpy(data->indexes_d, data->indexes_h, MATRIX_SIZE * MATRIX_SIZE * sizeof(double), cudaMemcpyHostToDevice);
+#ifdef COPY_ACTION
+		auto end_copy = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double> elapsed_copy = end_copy - start_copy;
+		std::cout << "\nCopy points and indexes to device: " << elapsed_copy.count() << "\n";
+#endif
         gpu_compute_func_and_delta_values << <gridDim, blockDim, 2 * blockDim.x * sizeof(double) >> > (data->points_d, data->indexes_d, data->vector_d);
         cudaDeviceSynchronize();
+#ifdef COPY_ACTION
+        start_copy = std::chrono::high_resolution_clock::now();
+#endif
         cudaMemcpy(data->vector_h, data->vector_d, x_blocks_count * MATRIX_SIZE * sizeof(double), cudaMemcpyDeviceToHost);
+#ifdef COPY_ACTION
+		end_copy = std::chrono::high_resolution_clock::now();
+		elapsed_copy = end_copy - start_copy;
+		std::cout << "\nCopy vector to host: " << elapsed_copy.count() << "\n";
+#endif
 
         for (int i = 0; i < MATRIX_SIZE; i++) {
             data->vec_h[i] -= data->vector_b_h[i];
@@ -160,7 +176,15 @@ void NewtonSolver::gpu_newton_solve() {
         start = std::chrono::high_resolution_clock::now();
 #endif
         gpu_compute_jacobian << <gridDim, blockDim, 2 * blockDim.x * sizeof(double) >> > (data->points_d, data->indexes_d, data->jacobian_d);
+#ifdef COPY_ACTION
+		start_copy = std::chrono::high_resolution_clock::now();
+#endif
         cudaMemcpy(data->jacobian_h, data->jacobian_d, MATRIX_SIZE * MATRIX_SIZE * sizeof(double), cudaMemcpyDeviceToHost);
+#ifdef COPY_ACTION
+		end_copy = std::chrono::high_resolution_clock::now();
+		elapsed_copy = end_copy - start_copy;
+		std::cout << "\nCopy jacobian to host: " << elapsed_copy.count() << "\n";
+#endif
         cudaDeviceSynchronize();
 #ifdef INTERMEDIATE_RESULTS
         end = std::chrono::high_resolution_clock::now();
@@ -181,10 +205,26 @@ void NewtonSolver::gpu_newton_solve() {
 #ifdef INTERMEDIATE_RESULTS
         start = std::chrono::high_resolution_clock::now();
 #endif
+#ifdef COPY_ACTION
+		start_copy = std::chrono::high_resolution_clock::now();
+#endif
         cudaMemcpy(data->vec_d, data->vec_h, MATRIX_SIZE * sizeof(double), cudaMemcpyHostToDevice);
+#ifdef COPY_ACTION
+		end_copy = std::chrono::high_resolution_clock::now();
+		elapsed_copy = end_copy - start_copy;
+		std::cout << "\nCopy vec to device: " << elapsed_copy.count() << "\n";
+#endif
         gpu_compute_func_and_delta_values << <gridDim, blockDim, 2 * blockDim.x * sizeof(double) >> > (data->vec_d, data->inverse_jacobian_d, data->delta_d);
         cudaDeviceSynchronize();
+#ifdef COPY_ACTION
+		start_copy = std::chrono::high_resolution_clock::now();
+#endif
         cudaMemcpy(data->delta_h, data->delta_d, x_blocks_count * MATRIX_SIZE * sizeof(double), cudaMemcpyDeviceToHost);
+#ifdef COPY_ACTION
+		end_copy = std::chrono::high_resolution_clock::now();
+		elapsed_copy = end_copy - start_copy;
+		std::cout << "\nCopy delta to host: " << elapsed_copy.count() << "\n";
+#endif
 
         for (int i = 0; i < MATRIX_SIZE; i++) {
             delta[i] = 0;

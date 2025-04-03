@@ -6,8 +6,8 @@
 
 DataInitializer::DataInitializer() {
     int x_blocks_count = (MATRIX_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
-#ifdef GPU_SOLVER
 
+#ifdef GPU_SOLVER
     cudaMalloc((void**)&points_d, MATRIX_SIZE * sizeof(double));
     cudaMalloc((void**)&indexes_d, MATRIX_SIZE * MATRIX_SIZE * sizeof(double));
     cudaMalloc((void**)&vector_d, x_blocks_count * MATRIX_SIZE * sizeof(double));
@@ -23,16 +23,25 @@ DataInitializer::DataInitializer() {
     cudaMalloc((void**)&cublas_ainverse_jacobian_d, sizeof(double*));
 #endif
 
+#ifdef PINNED_MEMORY
+	cudaMallocHost((double**)&points_h, MATRIX_SIZE * sizeof(double));
+	cudaMallocHost((double**)&indexes_h, MATRIX_SIZE * MATRIX_SIZE * sizeof(double));
+	cudaMallocHost((double**)&vector_h, x_blocks_count * MATRIX_SIZE * sizeof(double));
+	cudaMallocHost((double**)&jacobian_h, MATRIX_SIZE * MATRIX_SIZE * sizeof(double));
+	cudaMallocHost((double**)&inverse_jacobian_h, MATRIX_SIZE * MATRIX_SIZE * sizeof(double));
+	cudaMallocHost((double**)&vec_h, MATRIX_SIZE * sizeof(double));
+	cudaMallocHost((double**)&vector_b_h, MATRIX_SIZE * sizeof(double));
+	cudaMallocHost((double**)&delta_h, x_blocks_count * MATRIX_SIZE * sizeof(double));
+#else
     indexes_h = new double[MATRIX_SIZE * MATRIX_SIZE];
     jacobian_h = new double[MATRIX_SIZE * MATRIX_SIZE];
     points_h = new double[MATRIX_SIZE];
     vec_h = new double[MATRIX_SIZE];
     inverse_jacobian_h = new double[MATRIX_SIZE * MATRIX_SIZE];
-#ifdef GPU_SOLVER
-    vector_h = new double[x_blocks_count * MATRIX_SIZE];
-#endif
     delta_h = new double[x_blocks_count * MATRIX_SIZE];
     vector_b_h = new double[MATRIX_SIZE];
+    vector_h = new double[x_blocks_count * MATRIX_SIZE];
+#endif
 
 #ifdef INTERMEDIATE_RESULTS
     intermediate_results = std::vector<double>(5, 0.0);
@@ -61,6 +70,16 @@ DataInitializer::~DataInitializer() {
 	cudaFree(cublas_ainverse_jacobian_d);
 #endif
 
+#ifdef PINNED_MEMORY
+	cudaFreeHost(points_h);
+	cudaFreeHost(indexes_h);
+	cudaFreeHost(vector_h);
+	cudaFreeHost(jacobian_h);
+	cudaFreeHost(inverse_jacobian_h);
+	cudaFreeHost(vec_h);
+	cudaFreeHost(delta_h);
+	cudaFreeHost(vector_b_h);
+#else
     delete[] indexes_h;
     delete[] jacobian_h;
     delete[] points_h;
@@ -68,7 +87,6 @@ DataInitializer::~DataInitializer() {
     delete[] inverse_jacobian_h;
     delete[] vector_b_h;
     delete[] delta_h;
-#ifdef GPU_SOLVER
 	delete[] vector_h;
 #endif
 }
