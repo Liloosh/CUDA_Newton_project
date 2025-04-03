@@ -25,41 +25,41 @@ __global__ void gpu_compute_func_and_delta_values(double* points_d, double* inde
     shared_points[tidx] *= shared_points[tidx + blockDim.x];
     __syncthreads();
 
-    if (BLOCK_SIZE >= 1024) {
+    if (BLOCK_SIZE >= 1024 && threadIdx.x < 512) {
         shared_points[threadIdx.x] += shared_points[threadIdx.x + 512];
     }
 
     __syncthreads();
 
-    if (BLOCK_SIZE >= 512) {
+    if (BLOCK_SIZE >= 512 && threadIdx.x < 256) {
         shared_points[threadIdx.x] += shared_points[threadIdx.x + 256];
     }
 
     __syncthreads();
 
-    if (BLOCK_SIZE >= 256) {
+    if (BLOCK_SIZE >= 256 && threadIdx.x < 128) {
         shared_points[threadIdx.x] += shared_points[threadIdx.x + 128];
     }
 
     __syncthreads();
 
-    if (BLOCK_SIZE >= 128) {
+    if (BLOCK_SIZE >= 128 && threadIdx.x < 64) {
         shared_points[threadIdx.x] += shared_points[threadIdx.x + 64];
     }
 
     __syncthreads();
 
-    if (BLOCK_SIZE >= 64) {
+    if (BLOCK_SIZE >= 64 && threadIdx.x < 32) {
         shared_points[threadIdx.x] += shared_points[threadIdx.x + 32];
     }
 
     __syncthreads();
     if (threadIdx.x < 32) {
-        shared_points[threadIdx.x] += shared_points[threadIdx.x + 16];
-        shared_points[threadIdx.x] += shared_points[threadIdx.x + 8];
-        shared_points[threadIdx.x] += shared_points[threadIdx.x + 4];
-        shared_points[threadIdx.x] += shared_points[threadIdx.x + 2];
-        shared_points[threadIdx.x] += shared_points[threadIdx.x + 1];
+        shared_points[threadIdx.x] += shared_points[threadIdx.x + 16]; __syncwarp();
+        shared_points[threadIdx.x] += shared_points[threadIdx.x + 8]; __syncwarp();
+        shared_points[threadIdx.x] += shared_points[threadIdx.x + 4]; __syncwarp();
+        shared_points[threadIdx.x] += shared_points[threadIdx.x + 2]; __syncwarp();
+        shared_points[threadIdx.x] += shared_points[threadIdx.x + 1]; __syncwarp();
     }
     __syncthreads();
     if (tidx == 0) {
