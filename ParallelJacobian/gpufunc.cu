@@ -144,15 +144,15 @@ void NewtonSolver::gpu_newton_solve() {
 #endif
 
         gpu_compute_func_and_delta_values << <gridDim, blockDim, 2 * blockDim.x * sizeof(double) >> > (
-            data->points_d, data->indexes_d, data->vector_d);
+            data->points_d, data->indexes_d, data->intermediate_funcs_value_d);
         cudaDeviceSynchronize();
 
-        cudaMemcpy(data->vector_h, data->vector_d, x_blocks_count * MATRIX_SIZE * sizeof(double), cudaMemcpyDeviceToHost);
+        cudaMemcpy(data->intermediate_funcs_value_h, data->intermediate_funcs_value_d, x_blocks_count * MATRIX_SIZE * sizeof(double), cudaMemcpyDeviceToHost);
 
         for (int i = 0; i < MATRIX_SIZE; i++) {
-            data->vec_h[i] = -data->vector_b_h[i];
+            data->funcs_value_h[i] = -data->vector_b_h[i];
             for (int j = 0; j < x_blocks_count; j++) {
-                data->vec_h[i] += data->vector_h[i * x_blocks_count + j];
+                data->funcs_value_h[i] += data->intermediate_funcs_value_h[i * x_blocks_count + j];
             }
         }
 
@@ -181,10 +181,10 @@ void NewtonSolver::gpu_newton_solve() {
         start = std::chrono::high_resolution_clock::now();
 #endif
 
-        cudaMemcpy(data->vec_d, data->vec_h, MATRIX_SIZE * sizeof(double), cudaMemcpyHostToDevice);
+        cudaMemcpy(data->funcs_value_d, data->funcs_value_h, MATRIX_SIZE * sizeof(double), cudaMemcpyHostToDevice);
 
         gpu_compute_func_and_delta_values << <gridDim, blockDim, 2 * blockDim.x * sizeof(double) >> > (
-            data->vec_d, data->inverse_jacobian_d, data->delta_d);
+            data->funcs_value_d, data->inverse_jacobian_d, data->delta_d);
         cudaDeviceSynchronize();
 
         cudaMemcpy(data->delta_h, data->delta_d, x_blocks_count * MATRIX_SIZE * sizeof(double), cudaMemcpyDeviceToHost);
@@ -217,11 +217,12 @@ void NewtonSolver::gpu_newton_solve() {
         std::cout << "\nIteration: " << iterations_count << "\n";
         std::cout << "===============================================================\n";
         std::cout << "Intermediate results: \n";
-        std::cout << "Compute func values: " << data->intermediate_results[0] << "\n";
-        std::cout << "Compute jacobian: " << data->intermediate_results[1] << "\n";
-        std::cout << "Compute inverse jacobian: " << data->intermediate_results[2] << "\n";
-        std::cout << "Compute delta: " << data->intermediate_results[3] << "\n";
-        std::cout << "Update points: " << data->intermediate_results[4] << "\n";
+        std::cout << "Compute func values: " << data->intermediate_results[0] << "s" << "\n";
+        std::cout << "Compute jacobian: " << data->intermediate_results[1] << "s" << "\n";
+        std::cout << "Compute inverse jacobian: " << data->intermediate_results[2] << "s" << "\n";
+        std::cout << "Compute delta: " << data->intermediate_results[3] << "s" << "\n";
+        std::cout << "Update points: " << data->intermediate_results[4] << "s" << "\n";
+		std::cout << "Error (dx): " << dx << "\n";
         std::cout << "===============================================================\n";
 #endif
 
