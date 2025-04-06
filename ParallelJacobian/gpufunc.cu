@@ -1,4 +1,4 @@
-#include "NewtonSolver.h"
+﻿#include "NewtonSolver.h"
 #include "stdio.h"
 #include <iostream>
 
@@ -119,112 +119,75 @@ __global__ void gpu_compute_jacobian(double * points_d, double * indexes_d, doub
 }
 
 void NewtonSolver::gpu_newton_solve() {
-	std::cout << "GPU Newton solver" << "\n";
+    std::cout << "GPU Newton solver\n";
     int x_blocks_count = (MATRIX_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    double dx = 0;
     int iterations_count = 0;
+    double dx = 0;
+
     dim3 blockDim(BLOCK_SIZE, 1, 1);
     dim3 gridDim(x_blocks_count, MATRIX_SIZE, 1);
 
     double* delta = new double[MATRIX_SIZE];
-    double* delta1 = new double[MATRIX_SIZE];
 
 #ifdef TOTAL_ELASPED_TIME
     auto start_total = std::chrono::high_resolution_clock::now();
 #endif
+
+    cudaMemcpy(data->points_d, data->points_h, MATRIX_SIZE * sizeof(double), cudaMemcpyHostToDevice);
+    cudaMemcpy(data->indexes_d, data->indexes_h, MATRIX_SIZE * MATRIX_SIZE * sizeof(double), cudaMemcpyHostToDevice);
+
     do {
         iterations_count++;
 
 #ifdef INTERMEDIATE_RESULTS
         auto start = std::chrono::high_resolution_clock::now();
 #endif
-#ifdef COPY_ACTION
-		auto start_copy = std::chrono::high_resolution_clock::now();
-#endif
-        cudaMemcpy(data->points_d, data->points_h, MATRIX_SIZE * sizeof(double), cudaMemcpyHostToDevice);
-        cudaMemcpy(data->indexes_d, data->indexes_h, MATRIX_SIZE * MATRIX_SIZE * sizeof(double), cudaMemcpyHostToDevice);
-#ifdef COPY_ACTION
-		auto end_copy = std::chrono::high_resolution_clock::now();
-		std::chrono::duration<double> elapsed_copy = end_copy - start_copy;
-		std::cout << "\nCopy points and indexes to device: " << elapsed_copy.count() << "\n";
-#endif
-        gpu_compute_func_and_delta_values << <gridDim, blockDim, 2 * blockDim.x * sizeof(double) >> > (data->points_d, data->indexes_d, data->vector_d);
+
+        gpu_compute_func_and_delta_values << <gridDim, blockDim, 2 * blockDim.x * sizeof(double) >> > (
+            data->points_d, data->indexes_d, data->vector_d);
         cudaDeviceSynchronize();
-#ifdef COPY_ACTION
-        start_copy = std::chrono::high_resolution_clock::now();
-#endif
+
         cudaMemcpy(data->vector_h, data->vector_d, x_blocks_count * MATRIX_SIZE * sizeof(double), cudaMemcpyDeviceToHost);
-#ifdef COPY_ACTION
-		end_copy = std::chrono::high_resolution_clock::now();
-		elapsed_copy = end_copy - start_copy;
-		std::cout << "\nCopy vector to host: " << elapsed_copy.count() << "\n";
-#endif
 
         for (int i = 0; i < MATRIX_SIZE; i++) {
-            data->vec_h[i] -= data->vector_b_h[i];
+            data->vec_h[i] = -data->vector_b_h[i];
             for (int j = 0; j < x_blocks_count; j++) {
                 data->vec_h[i] += data->vector_h[i * x_blocks_count + j];
             }
         }
+
 #ifdef INTERMEDIATE_RESULTS
         auto end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> elapsed = end - start;
-        data->intermediate_results[0] = elapsed.count();
-#endif
-
-#ifdef INTERMEDIATE_RESULTS
+        data->intermediate_results[0] = std::chrono::duration<double>(end - start).count();
         start = std::chrono::high_resolution_clock::now();
 #endif
-        gpu_compute_jacobian << <gridDim, blockDim, 2 * blockDim.x * sizeof(double) >> > (data->points_d, data->indexes_d, data->jacobian_d);
-#ifdef COPY_ACTION
-		start_copy = std::chrono::high_resolution_clock::now();
-#endif
-        cudaMemcpy(data->jacobian_h, data->jacobian_d, MATRIX_SIZE * MATRIX_SIZE * sizeof(double), cudaMemcpyDeviceToHost);
-#ifdef COPY_ACTION
-		end_copy = std::chrono::high_resolution_clock::now();
-		elapsed_copy = end_copy - start_copy;
-		std::cout << "\nCopy jacobian to host: " << elapsed_copy.count() << "\n";
-#endif
+
+        gpu_compute_jacobian << <gridDim, blockDim, 2 * blockDim.x * sizeof(double) >> > (
+            data->points_d, data->indexes_d, data->jacobian_d);
         cudaDeviceSynchronize();
-#ifdef INTERMEDIATE_RESULTS
-        end = std::chrono::high_resolution_clock::now();
-        elapsed = end - start;
-        data->intermediate_results[1] = elapsed.count();
-#endif
+
+        cudaMemcpy(data->jacobian_h, data->jacobian_d, MATRIX_SIZE * MATRIX_SIZE * sizeof(double), cudaMemcpyDeviceToHost);
 
 #ifdef INTERMEDIATE_RESULTS
+        end = std::chrono::high_resolution_clock::now();
+        data->intermediate_results[1] = std::chrono::duration<double>(end - start).count();
         start = std::chrono::high_resolution_clock::now();
 #endif
         gpu_cublasInverse(data);
-#ifdef INTERMEDIATE_RESULTS
-        end = std::chrono::high_resolution_clock::now();
-        elapsed = end - start;
-        data->intermediate_results[2] = elapsed.count();
-#endif
 
 #ifdef INTERMEDIATE_RESULTS
+        end = std::chrono::high_resolution_clock::now();
+        data->intermediate_results[2] = std::chrono::duration<double>(end - start).count();
         start = std::chrono::high_resolution_clock::now();
 #endif
-#ifdef COPY_ACTION
-		start_copy = std::chrono::high_resolution_clock::now();
-#endif
+
         cudaMemcpy(data->vec_d, data->vec_h, MATRIX_SIZE * sizeof(double), cudaMemcpyHostToDevice);
-#ifdef COPY_ACTION
-		end_copy = std::chrono::high_resolution_clock::now();
-		elapsed_copy = end_copy - start_copy;
-		std::cout << "\nCopy vec to device: " << elapsed_copy.count() << "\n";
-#endif
-        gpu_compute_func_and_delta_values << <gridDim, blockDim, 2 * blockDim.x * sizeof(double) >> > (data->vec_d, data->inverse_jacobian_d, data->delta_d);
+
+        gpu_compute_func_and_delta_values << <gridDim, blockDim, 2 * blockDim.x * sizeof(double) >> > (
+            data->vec_d, data->inverse_jacobian_d, data->delta_d);
         cudaDeviceSynchronize();
-#ifdef COPY_ACTION
-		start_copy = std::chrono::high_resolution_clock::now();
-#endif
+
         cudaMemcpy(data->delta_h, data->delta_d, x_blocks_count * MATRIX_SIZE * sizeof(double), cudaMemcpyDeviceToHost);
-#ifdef COPY_ACTION
-		end_copy = std::chrono::high_resolution_clock::now();
-		elapsed_copy = end_copy - start_copy;
-		std::cout << "\nCopy delta to host: " << elapsed_copy.count() << "\n";
-#endif
 
         for (int i = 0; i < MATRIX_SIZE; i++) {
             delta[i] = 0;
@@ -232,31 +195,25 @@ void NewtonSolver::gpu_newton_solve() {
                 delta[i] -= data->delta_h[i * x_blocks_count + j];
             }
         }
+
 #ifdef INTERMEDIATE_RESULTS
         end = std::chrono::high_resolution_clock::now();
-        elapsed = end - start;
-        data->intermediate_results[3] = elapsed.count();
-#endif
-
-#ifdef INTERMEDIATE_RESULTS
+        data->intermediate_results[3] = std::chrono::duration<double>(end - start).count();
         start = std::chrono::high_resolution_clock::now();
 #endif
-        dx = 0.0;
 
+        dx = 0.0;
         for (size_t i = 0; i < MATRIX_SIZE; ++i) {
-            if (iterations_count == 1) {
-                delta1[i] = delta[i];
-            }
             data->points_h[i] += delta[i];
             dx = std::max(dx, std::abs(delta[i]));
         }
-#ifdef INTERMEDIATE_RESULTS
-        end = std::chrono::high_resolution_clock::now();
-        elapsed = end - start;
-        data->intermediate_results[4] = elapsed.count();
-#endif
+
+        cudaMemcpy(data->points_d, data->points_h, MATRIX_SIZE * sizeof(double), cudaMemcpyHostToDevice);
 
 #ifdef INTERMEDIATE_RESULTS
+        end = std::chrono::high_resolution_clock::now();
+        data->intermediate_results[4] = std::chrono::duration<double>(end - start).count();
+
         std::cout << "\nIteration: " << iterations_count << "\n";
         std::cout << "===============================================================\n";
         std::cout << "Intermediate results: \n";
@@ -267,18 +224,16 @@ void NewtonSolver::gpu_newton_solve() {
         std::cout << "Update points: " << data->intermediate_results[4] << "\n";
         std::cout << "===============================================================\n";
 #endif
+
     } while (dx > TOLERANCE);
+
 #ifdef TOTAL_ELASPED_TIME
     auto end_total = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed_total = end_total - start_total;
-    data->total_elapsed_time = elapsed_total.count();
+    data->total_elapsed_time = std::chrono::duration<double>(end_total - start_total).count();
 #endif
 
-    for (size_t i = 0; i < MATRIX_SIZE; ++i) {
-        data->points_h[i] -= delta1[i];
-    }
-
-
     print_solution(iterations_count, data->points_h);
+    delete[] delta;
 }
+
 #endif

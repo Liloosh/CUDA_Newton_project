@@ -1,3 +1,67 @@
-*.vcxproj
-Debug/
-Release/
+# Build results
+[Bb]in/
+[Oo]bj/
+*.exe
+*.dll
+*.lib
+*.pdb
+*.ipch
+*.iobj
+*.idb
+*.opendb
+*.cache
+*.ilk
+
+# User-specific files
+*.user
+*.userosscache
+*.suo
+*.sdf
+*.sln.docstates
+
+# Visual Studio specific folders
+.vs/
+.vscode/
+
+# CMake build folders (якщо використовуєш CMake)
+build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# CUDA temp files (якщо працюєш з CUDA)
+*.cu.cpp
+*.cu.obj
+*.cubin
+*.ptx
+
+# Logs and debug
+*.log
+*.tlog/
+*.lastbuildstate
+
+# Others
+*.ncb
+*.aps
+*.db
+*.VC.db
+*.VC.VC.opendb
+
+# Backup files
+*~
+*.bak
+*.orig
+*.tmp
+
+# Crash dumps
+*.dmp
+
+# Results of tests
+test_results/
+
+# Ignore generated output
+*.out
+
+# Ignore solution-wide packages (NuGet, etc)
+packages/
