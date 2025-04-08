@@ -118,6 +118,47 @@ __global__ void gpu_compute_jacobian(double * points_d, double * indexes_d, doub
     }
 }
 
+__global__ void normalizeRow(double* jacobian, double* inverse, int i, double pivot) {
+    int j = threadIdx.x + blockDim.x * blockIdx.x;
+    if (j < MATRIX_SIZE) {
+        jacobian[i * MATRIX_SIZE + j] /= pivot;
+        inverse[i * MATRIX_SIZE + j] /= pivot;
+    }
+}
+
+__global__ void eliminateColumn(double* jacobian, double* inverse, int i) {
+    int k = blockIdx.x;
+    int j = threadIdx.x;
+
+    if (k != i && j < MATRIX_SIZE) {
+        double factor = jacobian[k * MATRIX_SIZE + i];
+        jacobian[k * MATRIX_SIZE + j] -= jacobian[i * MATRIX_SIZE + j] * factor;
+        inverse[k * MATRIX_SIZE + j] -= inverse[i * MATRIX_SIZE + j] * factor;
+    }
+}
+
+__global__ void initIdentity(double* inverse) {
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
+    if (i < MATRIX_SIZE) {
+        for (int j = 0; j < MATRIX_SIZE; ++j)
+            inverse[i * MATRIX_SIZE + j] = (i == j) ? 1.0 : 0.0;
+    }
+}
+
+void gpu_inverse(double* jacobian_d, double* inverse_jacobian_d) {
+    int x_blocks_count = (MATRIX_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    dim3 blockDim(BLOCK_SIZE, 1, 1);
+    dim3 gridDim(x_blocks_count, 1, 1);
+    initIdentity << <gridDim, blockDim >> > (inverse_jacobian_d);
+
+    for (int i = 0; i < MATRIX_SIZE; ++i) {
+        double pivot;
+        cudaMemcpy(&pivot, &jacobian_d[i * MATRIX_SIZE +i], sizeof(double), cudaMemcpyDeviceToHost);
+        normalizeRow << <gridDim, blockDim >> > (jacobian_d, inverse_jacobian_d, i, pivot);
+        eliminateColumn << <MATRIX_SIZE, MATRIX_SIZE >> > (jacobian_d, inverse_jacobian_d, i);
+    }
+}
+
 void NewtonSolver::gpu_newton_solve() {
     std::cout << "GPU Newton solver\n";
     int x_blocks_count = (MATRIX_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
@@ -173,8 +214,9 @@ void NewtonSolver::gpu_newton_solve() {
         data->intermediate_results[1] = std::chrono::duration<double>(end - start).count();
         start = std::chrono::high_resolution_clock::now();
 #endif
-        gpu_cublasInverse(data);
-
+        //gpu_cublasInverse(data);
+        //cudaMemcpy(data->inverse_jacobian_d, data->inverse_jacobian_h, MATRIX_SIZE * MATRIX_SIZE * sizeof(double), cudaMemcpyHostToDevice);
+		gpu_inverse(data->jacobian_d, data->inverse_jacobian_d);
 #ifdef INTERMEDIATE_RESULTS
         end = std::chrono::high_resolution_clock::now();
         data->intermediate_results[2] = std::chrono::duration<double>(end - start).count();

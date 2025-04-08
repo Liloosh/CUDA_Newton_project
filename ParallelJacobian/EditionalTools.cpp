@@ -54,5 +54,5 @@ void tools::generate_sparse_initial_indexes_matrix_and_vector_b(double* matrix, 
 
 
 double tools::calculate_index_xn(double index, double x) {
-	return index * x * x * x;
+	return index * x;
 }

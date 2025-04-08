@@ -2,10 +2,10 @@
 #include "vector"
 #include "config.h"
 
-#define MATRIX_SIZE 1000
-#define BLOCK_SIZE 512
-#define EQURENCY 1e-6
-#define TOLERANCE 1e-5
+#define MATRIX_SIZE 100
+#define BLOCK_SIZE 128
+#define EQURENCY 1e-7
+#define TOLERANCE 1e-6
 
 struct DataInitializer {
 public:

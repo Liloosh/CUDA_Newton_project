@@ -162,6 +162,7 @@ void NewtonSolver::cpu_newton_solve() {
         std::cout << "Compute inverse jacobian: " << data->intermediate_results[2] << "\n";
         std::cout << "Compute delta: " << data->intermediate_results[3] << "\n";
         std::cout << "Update points: " << data->intermediate_results[4] << "\n";
+		std::cout << "Error: " << dx << "\n";
         std::cout << "===============================================================\n";
 #endif
     } while (dx > TOLERANCE);
