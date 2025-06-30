@@ -130,7 +130,7 @@ void NewtonSolverCuDSS::gpu_newton_solver_cudss() {
 
 	cudaMemcpy(data->points_d, data->points_h, data->MATRIX_SIZE * sizeof(double), cudaMemcpyHostToDevice);
 
-	parse_to_csr(data->csr_cols_h, data->csr_rows_h, data->csr_values_h, data->indexes_h);
+	//parse_to_csr(data->csr_cols_h, data->csr_rows_h, data->csr_values_h, data->indexes_h);
 	cudaMemcpy(data->csr_cols_d, data->csr_cols_h, data->non_zero_count * sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(data->csr_rows_d, data->csr_rows_h, (data->MATRIX_SIZE + 1) * sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(data->csr_values_d, data->csr_values_h, data->non_zero_count * sizeof(double), cudaMemcpyHostToDevice);

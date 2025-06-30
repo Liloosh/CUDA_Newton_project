@@ -1,9 +1,11 @@
 #include "DataInitializerCuDSS.h"
+#include <iostream>
+#include "../Include/EditionalTools.h"
 
 DataInitializerCuDSS::DataInitializerCuDSS(int MATRIX_SIZE, int zeros_elements_per_row, int file_name, int power)
-	: DataInitializer(MATRIX_SIZE, zeros_elements_per_row, file_name, power) {
+	: DataInitializer(MATRIX_SIZE, zeros_elements_per_row, file_name, power, true) {
 	// Allocate memory for CSR representation
-	non_zero_count = count_non_zero_elements(indexes_h);
+	non_zero_count = MATRIX_SIZE * (MATRIX_SIZE - zeros_elements_per_row);
 	csr_values_h = new double[non_zero_count];
 	csr_rows_h = new int[MATRIX_SIZE + 1];
 	csr_cols_h = new int[non_zero_count];
@@ -18,6 +20,7 @@ DataInitializerCuDSS::DataInitializerCuDSS(int MATRIX_SIZE, int zeros_elements_p
 	delta_h = new double[MATRIX_SIZE];
 	funcs_value_h = new double[MATRIX_SIZE];
 
+	tools::generate_sparse_initial_indexes_matrix_and_vector_b(csr_values_h, csr_rows_h, csr_cols_h, vector_b_h, points_check, MATRIX_SIZE, equation, zeros_elements_per_row);
 
 	cudssCreate(&handler);
 

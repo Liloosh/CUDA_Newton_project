@@ -97,38 +97,88 @@ void tools::generate_sparse_initial_indexes_matrix_and_vector_b(
     }
 }
 
-//void tools::generate_sparse_initial_indexes_matrix_and_vector_b(double* matrix, double* b, int zeros_per_row, int MATRIX_SIZE) {
-//    for (int i = 0; i < MATRIX_SIZE; i++) {
-//        b[i] = 1;
-//
-//        double sum = 0.0;
-//        for (int j = 0; j < MATRIX_SIZE; j++) {
-//            matrix[i * MATRIX_SIZE + j] = static_cast<double>(rand()) / RAND_MAX;
-//            sum += matrix[i * MATRIX_SIZE + j];
-//        }
-//        bool *zeroed = new bool[MATRIX_SIZE];
-//        zeroed[0] = false;
-//
-//        int zeros_set = 0;
-//        while (zeros_set < zeros_per_row) {
-//            int idx = rand() % MATRIX_SIZE;
-//            if (!zeroed[idx]) {
-//                sum -= matrix[i * MATRIX_SIZE + idx];
-//                matrix[i * MATRIX_SIZE + idx] = 0.0;
-//                zeroed[idx] = true;
-//                zeros_set++;
-//            }
-//        }
-//
-//        if (sum > 0) {
-//            for (int j = 0; j < MATRIX_SIZE; j++) {
-//                if (!zeroed[j]) {
-//                    matrix[i * MATRIX_SIZE + j] *= 10.0 / sum;
-//                }
-//            }
-//        }
-//    }
-//}
+void tools::generate_sparse_initial_indexes_matrix_and_vector_b(
+    double* csr_values,
+    int* csr_rows,
+    int* csr_cols,
+    double* b,
+    double* points,
+    int MATRIX_SIZE,
+    Equation* equation,
+    int zero_elements_per_row)
+{
+    if (zero_elements_per_row < 0 || zero_elements_per_row >= MATRIX_SIZE) {
+        zero_elements_per_row = 0;
+    }
+
+    std::mt19937 gen;
+    auto rand_max = gen.max();
+
+    for (int i = 0; i < MATRIX_SIZE; i++) {
+        points[i] = static_cast<double>(gen()) / rand_max;
+    }
+
+    csr_rows[0] = 0;
+    int current_pos = 0;
+
+    for (int i = 0; i < MATRIX_SIZE; i++) {
+        std::vector<int> positions;
+        positions.reserve(MATRIX_SIZE);
+
+        positions.push_back(i);
+
+        for (int j = 0; j < MATRIX_SIZE; j++) {
+            if (j != i) {
+                positions.push_back(j);
+            }
+        }
+
+        std::shuffle(positions.begin() + 1, positions.end(), gen);
+
+        int non_zero_count = MATRIX_SIZE - zero_elements_per_row;
+        std::vector<int> selected_positions(positions.begin(), positions.begin() + non_zero_count);
+        std::sort(selected_positions.begin(), selected_positions.end());
+
+        for (int col : selected_positions) {
+            csr_cols[current_pos] = col;
+            csr_values[current_pos] = static_cast<double>(gen()) / rand_max;
+            current_pos++;
+        }
+
+        csr_rows[i + 1] = current_pos;
+    }
+
+    for (int i = 0; i < MATRIX_SIZE; i++) {
+        double sum = 0.0;
+        int diagonal_idx = -1;
+
+        for (int idx = csr_rows[i]; idx < csr_rows[i + 1]; idx++) {
+            if (csr_cols[idx] == i) {
+                diagonal_idx = idx;
+            }
+            else {
+                sum += std::abs(csr_values[idx]);
+            }
+        }
+
+        if (diagonal_idx != -1) {
+            if ((sum + 1e-7) >= std::abs(csr_values[diagonal_idx])) {
+                csr_values[diagonal_idx] = sum + 1.0;
+            }
+        }
+    }
+
+    for (int i = 0; i < MATRIX_SIZE; i++) {
+        b[i] = 0.0;
+        for (int idx = csr_rows[i]; idx < csr_rows[i + 1]; idx++) {
+            int col = csr_cols[idx];
+            double val = csr_values[idx];
+            b[i] += equation->calculate_term_value(val, points[col]);
+        }
+    }
+}
+
+
 
 double tools::calculate_index_xn(double index, double x) {
 	return index * x;

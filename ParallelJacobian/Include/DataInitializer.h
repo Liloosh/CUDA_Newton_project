@@ -29,8 +29,8 @@ public:
 	double total_elapsed_time;
 #endif
 
-	void initialize_indexes_matrix_and_b();
+	void initialize_indexes_matrix_and_b(bool isCuDSS = false);
  
-	DataInitializer(int MATRIX_SIZE, int zeros_elements_per_row, int file_name, int power = 1);
+	DataInitializer(int MATRIX_SIZE, int zeros_elements_per_row, int file_name, int power = 1, bool isCuDSS = false);
 	~DataInitializer();
 };

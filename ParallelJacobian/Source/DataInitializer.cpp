@@ -4,7 +4,7 @@
 #include "stdlib.h"
 #include "iostream"
 
-DataInitializer::DataInitializer(int MATRIX_SIZE, int zeros_elements_per_row, int file_name, int power) {
+DataInitializer::DataInitializer(int MATRIX_SIZE, int zeros_elements_per_row, int file_name, int power, bool isCuDSS) {
 	this->equation = new Equation(power);
 	this->MATRIX_SIZE = MATRIX_SIZE;
 	this->file_name = file_name;
@@ -22,7 +22,9 @@ DataInitializer::DataInitializer(int MATRIX_SIZE, int zeros_elements_per_row, in
 	cudaMallocHost((double**)&vector_b_h, MATRIX_SIZE * sizeof(double));
 	cudaMallocHost((double**)&delta_h, x_blocks_count * MATRIX_SIZE * sizeof(double));
 #else
-    indexes_h = new double[MATRIX_SIZE * MATRIX_SIZE];
+	if (!isCuDSS) {
+		indexes_h = new double[MATRIX_SIZE * MATRIX_SIZE];
+	}
     points_h = new double[MATRIX_SIZE];
     vector_b_h = new double[MATRIX_SIZE];
 	points_check = new double[MATRIX_SIZE];
@@ -36,7 +38,7 @@ DataInitializer::DataInitializer(int MATRIX_SIZE, int zeros_elements_per_row, in
 	total_elapsed_time = 0.0;
 #endif
 
-    initialize_indexes_matrix_and_b();
+    initialize_indexes_matrix_and_b(isCuDSS);
 }
 
 DataInitializer::~DataInitializer() {
@@ -59,7 +61,7 @@ DataInitializer::~DataInitializer() {
     delete equation;
 }
 
-void DataInitializer::initialize_indexes_matrix_and_b() {
+void DataInitializer::initialize_indexes_matrix_and_b(bool isCuDSS) {
     //int x_blocks_count = (MATRIX_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
     for (int i = 0; i < MATRIX_SIZE; i++) {
@@ -71,6 +73,8 @@ void DataInitializer::initialize_indexes_matrix_and_b() {
 #endif
     }
 
-    tools::generate_sparse_initial_indexes_matrix_and_vector_b(indexes_h, vector_b_h, points_check, MATRIX_SIZE, equation, zeros_elements_per_row);
+	if (!isCuDSS) {
+		tools::generate_sparse_initial_indexes_matrix_and_vector_b(indexes_h, vector_b_h, points_check, MATRIX_SIZE, equation, zeros_elements_per_row);
+	}
     //tools::generate_sparse_initial_indexes_matrix_and_vector_b(indexes_h, vector_b_h, 500, MATRIX_SIZE);
 }
