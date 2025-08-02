@@ -1,9 +1,15 @@
 #include "DataInitializerCuDSS.h"
 
-DataInitializerCuDSS::DataInitializerCuDSS(int MATRIX_SIZE, int zeros_elements_per_row, int file_name, int power)
-	: DataInitializer(MATRIX_SIZE, zeros_elements_per_row, file_name, power) {
+#include <iostream>
+
+#include "EditionalTools.h"
+
+DataInitializerCuDSS::DataInitializerCuDSS(
+		int MATRIX_SIZE, int zeros_elements_per_row, int file_name,
+		const Settings::SettingsData& s, int power)
+	: DataInitializer(MATRIX_SIZE, zeros_elements_per_row, file_name, s, power, true) {
 	// Allocate memory for CSR representation
-	non_zero_count = count_non_zero_elements(indexes_h);
+	non_zero_count = MATRIX_SIZE * (MATRIX_SIZE - zeros_elements_per_row);
 	csr_values_h = new double[non_zero_count];
 	csr_rows_h = new int[MATRIX_SIZE + 1];
 	csr_cols_h = new int[non_zero_count];
@@ -18,6 +24,11 @@ DataInitializerCuDSS::DataInitializerCuDSS(int MATRIX_SIZE, int zeros_elements_p
 	delta_h = new double[MATRIX_SIZE];
 	funcs_value_h = new double[MATRIX_SIZE];
 
+	tools::generate_sparse_initial_indexes_matrix_and_vector_b(
+			csr_values_h, csr_rows_h, csr_cols_h, vector_b_h,
+			points_check, MATRIX_SIZE, equation,
+			zeros_elements_per_row, s);
+	non_zero_count = csr_rows_h[MATRIX_SIZE];
 
 	cudssCreate(&handler);
 
@@ -29,16 +40,6 @@ DataInitializerCuDSS::DataInitializerCuDSS(int MATRIX_SIZE, int zeros_elements_p
 
 	cudssMatrixCreateCsr(&A, MATRIX_SIZE, MATRIX_SIZE, non_zero_count, csr_rows_d, NULL, csr_cols_d, jacobian_d, CUDA_R_32I, CUDA_R_64F, mtype, mvtype, base);
 
-}
-
-int DataInitializerCuDSS::count_non_zero_elements(double* matrix_A) {
-	int non_zero_count = 0;
-	for (int i = 0; i < MATRIX_SIZE * MATRIX_SIZE; i++) {
-		if (matrix_A[i] != 0) {
-			non_zero_count++;
-		}
-	}
-	return non_zero_count;
 }
 
 DataInitializerCuDSS::~DataInitializerCuDSS() {

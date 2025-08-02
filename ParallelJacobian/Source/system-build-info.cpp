@@ -10,6 +10,7 @@ const std::string SystemBuildInfo::compilerCxxVer = BUILD_COMPILER_CXX_VER;
 const std::string SystemBuildInfo::cuDssVer = BUILD_CUDSS_VERSION;
 const std::string SystemBuildInfo::cudaArchs = BUILD_CUDA_ARCHITECTURES;
 const std::string SystemBuildInfo::cmakeBuildType = BUILD_CMAKE_TYPE;
+const std::string SystemBuildInfo::mklInterface = BUILD_MKL_INTERFACE_FULL;
 
 #if defined(BUILD_CONFIG_DEBUG)
 const std::string SystemBuildInfo::buildConfig = "Debug";
@@ -31,4 +32,13 @@ void SystemBuildInfo::dump(std::ostream& s)
     if (buildConfig != cmakeBuildType) {
         s << "Cmake build type: " << cmakeBuildType << std::endl;
     }
+
+#ifndef CFG_SOLVE_CUDA
+    s << "CUDA build disabled" << std::endl;
+#endif
+#ifndef CFG_SOLVE_MKL
+    s << "MKL build disabled" << std::endl;
+#else
+    s << "MKL Interface: " << mklInterface << std::endl;
+#endif
 }

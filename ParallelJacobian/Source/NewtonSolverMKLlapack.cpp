@@ -1,13 +1,14 @@
-#include "NewtonSolverCPU.h"
-
-#include <cmath>
+#include "math.h"
 #include <iostream>
 #include <memory>
+#include <chrono>
+#include "mkl.h"
 
-#include "EditionalTools.h"
 #include "FileOperations.h"
+#include "NewtonSolverMKLlapack.h"
+#include "EditionalTools.h"
 
-NewtonSolverCPU::NewtonSolverCPU(DataInitializerCPU* dataInitializer,
+NewtonSolverMKLlapack::NewtonSolverMKLlapack(DataInitializerMKLlapack* dataInitializer,
         const Settings::SettingsData& settings, SystemInfo& sinfo)
     : settings_{settings}
     , sinfo_{sinfo}
@@ -15,10 +16,10 @@ NewtonSolverCPU::NewtonSolverCPU(DataInitializerCPU* dataInitializer,
 	data = dataInitializer;
 }
 
-NewtonSolverCPU::~NewtonSolverCPU() {
+NewtonSolverMKLlapack::~NewtonSolverMKLlapack() {
 }
 
-void NewtonSolverCPU::cpu_computeVec() {
+void NewtonSolverMKLlapack::cpu_computeVec() {
     const int N = data->MATRIX_SIZE;
 
     for (int i = 0; i < N; ++i) {
@@ -33,7 +34,7 @@ void NewtonSolverCPU::cpu_computeVec() {
     }
 }
 
-double NewtonSolverCPU::cpu_compute_derivative(int rowIndex, int colIndex) {
+double NewtonSolverMKLlapack::cpu_compute_derivative(int rowIndex, int colIndex) {
     double value = data->points_h[colIndex];
     double element = data->indexes_h[rowIndex * data->MATRIX_SIZE + colIndex];
 
@@ -43,7 +44,7 @@ double NewtonSolverCPU::cpu_compute_derivative(int rowIndex, int colIndex) {
     return (f_plus - f_minus) / (2.0 * EQURENCY);
 }
 
-void NewtonSolverCPU::cpu_compute_jacobian() {
+void NewtonSolverMKLlapack::cpu_compute_jacobian() {
     for (int i = 0; i < data->MATRIX_SIZE; ++i) {
         for (int j = 0; j < data->MATRIX_SIZE; ++j) {
             data->jacobian_h[i * data->MATRIX_SIZE + j] = cpu_compute_derivative(i, j);
@@ -51,70 +52,31 @@ void NewtonSolverCPU::cpu_compute_jacobian() {
     }
 }
 
-void NewtonSolverCPU::cpu_inverse() {
-    int N = data->MATRIX_SIZE;
+void NewtonSolverMKLlapack::cpu_find_delta(){
+    lapack_int *ipiv = new lapack_int[data->MATRIX_SIZE];
+    int info;
+    info = LAPACKE_dgetrf(LAPACK_COL_MAJOR, data->MATRIX_SIZE, data->MATRIX_SIZE, data->jacobian_h, data->MATRIX_SIZE, ipiv);
+    
+    if (info != 0) {
+        std::cerr << "dgetrf error: " << info << std::endl;
+    exit(EXIT_FAILURE);
+    }   
 
-    for (int i = 0; i < N; i++)
-        for (int j = 0; j < N; j++)
-            data->inverse_jacobian_h[i * N + j] = (i == j) ? 1.0 : 0.0;
-
-    for (int i = 0; i < N; i++) {
-        int maxRow = i;
-        double maxVal = fabs(data->jacobian_h[i * N + i]);
-        for (int k = i + 1; k < N; k++) {
-            double val = fabs(data->jacobian_h[k * N + i]);
-            if (val > maxVal) {
-                maxVal = val;
-                maxRow = k;
-            }
-        }
-
-        if (maxRow != i) {
-            for (int j = 0; j < N; j++) {
-                std::swap(data->jacobian_h[i * N + j], data->jacobian_h[maxRow * N + j]);
-                std::swap(data->inverse_jacobian_h[i * N + j], data->inverse_jacobian_h[maxRow * N + j]);
-            }
-        }
-
-        double temp = data->jacobian_h[i * N + i];
-        if (fabs(temp) < 1e-12) {
-            std::cerr << "Jacobian is singular or nearly singular at row " << i << std::endl;
-            return;
-        }
-
-        for (int j = 0; j < N; j++) {
-            data->jacobian_h[i * N + j] /= temp;
-            data->inverse_jacobian_h[i * N + j] /= temp;
-        }
-
-        for (int k = 0; k < N; k++) {
-            if (k != i) {
-                double factor = data->jacobian_h[k * N + i];
-                for (int j = 0; j < N; j++) {
-                    data->jacobian_h[k * N + j] -= data->jacobian_h[i * N + j] * factor;
-                    data->inverse_jacobian_h[k * N + j] -= data->inverse_jacobian_h[i * N + j] * factor;
-                }
-            }
-        }
-    }
+    info = LAPACKE_dgetrs(LAPACK_COL_MAJOR, 'T', data->MATRIX_SIZE, 1, data->jacobian_h, data->MATRIX_SIZE,
+        ipiv, data->funcs_value_h, data->MATRIX_SIZE);
+    if (info != 0) {
+    std::cerr << "dgetrs error: " << info << std::endl;
+    exit(EXIT_FAILURE);
+}
+    delete[] ipiv;
 }
 
-
-void NewtonSolverCPU::cpu_compute_delta() {
-    for (int i = 0; i < data->MATRIX_SIZE; i++) {
-        data->delta_h[i] = 0.0;
-        for (int j = 0; j < data->MATRIX_SIZE; j++) {
-            data->delta_h[i] -= data->inverse_jacobian_h[i * data->MATRIX_SIZE + j] * data->funcs_value_h[j];
-        }
-    }
-}
-
-void NewtonSolverCPU::cpu_newton_solve() {
+void NewtonSolverMKLlapack::cpu_newton_solve() {
     std::cout << "CPU Newton solver\n";
     double dx = 0.0;
     int iterations_count = 0;
     std::unique_ptr<FileOperations> file_op = std::make_unique<FileOperations>(settings_.path);
-    std::string file_name = "cpu_newton_solver_" + std::to_string(data->file_name) + ".csv";
+    std::string file_name = "cpu_mkl_lapack_newton_solver_" + std::to_string(data->file_name) + ".csv";
     file_op->create_file(file_name, 4);
     file_op->append_file_headers(data->csv_header);
 
@@ -148,18 +110,20 @@ void NewtonSolverCPU::cpu_newton_solve() {
 #ifdef INTERMEDIATE_RESULTS
         start = std::chrono::steady_clock::now();
 #endif
-        cpu_inverse();
-        cpu_compute_delta();
+        cpu_find_delta();
 #ifdef INTERMEDIATE_RESULTS
         end = std::chrono::steady_clock::now();
         elapsed = end - start;
         data->intermediate_results[2] = elapsed.count();
+#endif
+
+#ifdef INTERMEDIATE_RESULTS
         start = std::chrono::steady_clock::now();
 #endif
         dx = 0;
         for (int i = 0; i < data->MATRIX_SIZE; ++i) {
-            data->points_h[i] += data->delta_h[i];
-            dx = std::max(dx, std::abs(data->delta_h[i]));
+            data->points_h[i] -= data->funcs_value_h[i];
+            dx = std::max(dx, std::abs(data->funcs_value_h[i]));
         }
 #ifdef INTERMEDIATE_RESULTS
         end = std::chrono::steady_clock::now();
@@ -172,7 +136,7 @@ void NewtonSolverCPU::cpu_newton_solve() {
                     data->intermediate_results, data->MATRIX_SIZE,
                     data->nnz_row, iterations_count,
                     sinfo_.mem_rss_usage_get(), sinfo_.gpu_mem_usage_get(),
-                    "CPU", data->settings.label);
+                    "MKL_LAPACK", data->settings.label);
     } while (dx > TOLERANCE);
     file_op->close_file();
 

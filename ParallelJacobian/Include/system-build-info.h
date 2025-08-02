@@ -14,6 +14,7 @@ struct SystemBuildInfo
     static const std::string cudaArchs;
     static const std::string cmakeBuildType;
     static const std::string buildConfig;
+    static const std::string mklInterface;
 
     static void dump(std::ostream&);
 };

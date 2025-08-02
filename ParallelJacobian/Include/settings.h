@@ -16,9 +16,17 @@ public:
         unsigned min{1000};
         unsigned power{3};
         unsigned stride{100};
+        unsigned size{0};
+        unsigned nnz{0};
+        unsigned seed{0};
+        bool rand_sparse_pos{false};
         bool is_cpu{false};
         bool is_cublas{false};
         bool is_cudss{false};
+        bool is_cusolver{false};
+        bool is_mkl_dss{false};
+        bool is_mkl_lapack{false};
+        std::string label{"none"};
         std::string path{"../results"};
         bool report_subdir{false};
         bool redirect_out{false};

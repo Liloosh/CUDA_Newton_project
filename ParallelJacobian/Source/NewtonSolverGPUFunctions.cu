@@ -182,6 +182,7 @@ __global__ void NewtonSolverGPUFunctions::gpu_compute_jacobian(double* points_d,
     double result = (f_plus - f_minus) / (2 * EQURENCY);
 
     if (row < MATRIX_SIZE && col < MATRIX_SIZE) {
-        jacobian_d[row * MATRIX_SIZE + col] = result;
+        // Transpose for cuBLAS TRF/TRS fucntions
+        jacobian_d[col * MATRIX_SIZE + row] = result;
     }
 }

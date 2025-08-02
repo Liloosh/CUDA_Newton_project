@@ -1,8 +1,10 @@
 #pragma once
+
+#include <vector>
+
 #include "Equation.h"
-#include "vector"
 #include "config.h"
-#include "cublas_v2.h"
+#include "settings.h"
 
 #define BLOCK_SIZE 64
 #define EQURENCY 1e-6
@@ -11,8 +13,10 @@
 
 struct DataInitializer {
 public:
+	const Settings::SettingsData& settings;
 	int file_name;
 	int zeros_elements_per_row;
+	int nnz_row;
 	Equation* equation{ nullptr };
 	int MATRIX_SIZE{ 0 };
 
@@ -20,6 +24,8 @@ public:
 		* points_h{ nullptr },
 		* vector_b_h{ nullptr },
 		* points_check{ nullptr };
+
+	static const std::string csv_header;
 
 #ifdef INTERMEDIATE_RESULTS
 	std::vector<double> intermediate_results;
@@ -29,8 +35,11 @@ public:
 	double total_elapsed_time;
 #endif
 
-	void initialize_indexes_matrix_and_b();
- 
-	DataInitializer(int MATRIX_SIZE, int zeros_elements_per_row, int file_name, int power = 1);
+	void initialize_indexes_matrix_and_b(const Settings::SettingsData& s,
+			bool is_csr = false);
+
+	DataInitializer(int MATRIX_SIZE, int zeros_elements_per_row,
+			int file_name, const Settings::SettingsData& s,
+			int power = 1, bool is_csr = false);
 	~DataInitializer();
 };

@@ -1,0 +1,19 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/usr/include/c++/13",
+                "/usr/include/x86_64-linux-gnu", 
+                "/opt/intel/oneapi/2025.2/include"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/clang-18",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-clang-x64"
+        }
+    ],
+    "version": 4
+}
